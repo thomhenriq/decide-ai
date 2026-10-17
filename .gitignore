@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+*/dist/
+
+# Runtime / Temp files
+.sites-runtime/
+*/.sites-runtime/
+*.local
+.env
+.env*.local
+
+# OS files
+.DS_Store
+Thumbs.db
