@@ -28,6 +28,22 @@ export function newConversation(): Conversation {
 function isMessage(value: unknown): value is Message {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<Message>;
+  if (message.type !== undefined && !['text', 'audio', 'image'].includes(message.type)) return false;
+  if (message.type === 'image') {
+    const image = message.image;
+    if (message.role !== 'user' || !image || typeof image.id !== 'string' ||
+      !['image/jpeg', 'image/png', 'image/webp'].includes(image.mimeType) ||
+      !Number.isFinite(image.size) || image.size <= 0 || typeof image.originalName !== 'string' ||
+      typeof image.relativePath !== 'string' || typeof image.url !== 'string' ||
+      !/^\/api\/images\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(image.url)) return false;
+  }
+  if (message.type === 'audio') {
+    if (message.role !== 'user' || !message.audio || typeof message.audio.id !== 'string' ||
+      typeof message.audio.mimeType !== 'string' ||
+      !['pending', 'completed', 'error'].includes(message.audio.transcriptionStatus) ||
+      (message.audio.durationSeconds !== undefined && (!Number.isFinite(message.audio.durationSeconds) || message.audio.durationSeconds < 0)) ||
+      (message.audio.transcriptionError !== undefined && typeof message.audio.transcriptionError !== 'string')) return false;
+  }
   return typeof message.id === 'string' &&
     (message.role === 'user' || message.role === 'assistant') &&
     typeof message.content === 'string' && typeof message.createdAt === 'string' &&
@@ -43,7 +59,10 @@ export function loadConversation(): Conversation {
       return {
         ...value,
         messages: value.messages.filter((message: Message, index: number) =>
-          !(index === 0 && message.role === 'assistant' && message.content === LEGACY_GREETING)),
+          !(index === 0 && message.role === 'assistant' && message.content === LEGACY_GREETING))
+          .map((message: Message) => message.audio?.transcriptionStatus === 'pending' ? {
+            ...message, audio: { ...message.audio, transcriptionStatus: 'error', transcriptionError: 'A transcrição foi interrompida. Tente novamente.' },
+          } : message),
       };
     }
   } catch { /* Armazenamento indisponível ou histórico inválido: inicia em memória. */ }

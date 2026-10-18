@@ -1,4 +1,4 @@
-export function Icon({ name, size = 22 }: { name: 'send' | 'more' | 'check' | 'bowl' | 'close' | 'spark' | 'chevron'; size?: number }) {
+export function Icon({ name, size = 22 }: { name: 'send' | 'more' | 'check' | 'bowl' | 'close' | 'spark' | 'chevron' | 'mic' | 'attach' | 'stop'; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {name === 'send' && <><path d="m21 3-7.5 18-3.6-7.9L2 9.5 21 3Z" /><path d="m10 13 5-5" /></>}
@@ -8,6 +8,9 @@ export function Icon({ name, size = 22 }: { name: 'send' | 'more' | 'check' | 'b
       {name === 'close' && <path d="m6 6 12 12M6 18 18 6" />}
       {name === 'spark' && <><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" /></>}
       {name === 'chevron' && <path d="m8 10 4 4 4-4" />}
+      {name === 'mic' && <><rect x="9" y="2" width="6" height="13" rx="3" /><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" /></>}
+      {name === 'attach' && <path d="m8 12 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l9-9m-5 13 7-7" />}
+      {name === 'stop' && <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />}
     </svg>
   );
 }

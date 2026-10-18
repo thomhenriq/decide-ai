@@ -7,5 +7,5 @@ import type { MessageSentPayload } from '../types';
  * Não coloque chaves privadas no frontend; use um backend na integração real.
  */
 export async function onMessageSent(payload: MessageSentPayload): Promise<string | void> {
-  console.info('[chat:message:sent]', payload.message.content, payload);
+  console.info('[chat:message:sent]', payload.message.type === 'image' ? payload.message.image : payload.message.content, payload);
 }

@@ -2,3 +2,12 @@ node_modules/
 dist/
 .sites-runtime/
 *.local
+.env
+.env.*
+!.env.example
+.venv/
+.models/
+__pycache__/
+*.pyc
+temp/*
+!temp/.gitkeep
