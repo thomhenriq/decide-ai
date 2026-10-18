@@ -22,7 +22,7 @@ function withStorage(run) {
   finally { if (previous) Object.defineProperty(globalThis, 'localStorage', previous); else delete globalThis.localStorage; }
 }
 
-test('cliente começa vazio; restaurante já recebe o exemplo do Decide Aí', () => withStorage(() => {
+test('cliente começa vazio; restaurante começa com a saudação do Decide Aí', () => withStorage(() => {
   const html = renderToStaticMarkup(createElement(App));
   const [client, restaurant] = html.split('id="restaurant-panel-title"');
   assert.ok(client.includes('id="client-panel-title">Cliente'));
@@ -30,9 +30,11 @@ test('cliente começa vazio; restaurante já recebe o exemplo do Decide Aí', ()
   assert.ok(client.includes('Bateu a fome?'));
   assert.ok(!client.includes('class="message message--assistant"'));
   assert.ok(restaurant.includes('aria-label="Decide Aí"'));
-  assert.ok(restaurant.includes('açaí após a 1h'));
-  assert.ok(restaurant.includes('00h30'));
-  assert.ok(restaurant.includes('dados ilustrativos'));
+  assert.ok(restaurant.includes('me manda os insights da semana'));
+  assert.ok(restaurant.includes('Insights da semana · peça quando quiser'));
+  // O resumo de exemplo, com dados inventados, não aparece mais.
+  assert.ok(!restaurant.includes('açaí após a 1h'));
+  assert.ok(!restaurant.includes('dados ilustrativos'));
   assert.ok(restaurant.includes('Mensagem do restaurante'));
 }));
 

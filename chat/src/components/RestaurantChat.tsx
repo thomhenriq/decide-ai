@@ -16,6 +16,7 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
   const current = useRef(conversation);
   const [draft, setDraft] = useState('');
   const [notice, setNotice] = useState('');
+  const [typing, setTyping] = useState(false);
   const scrollArea = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const nearBottom = useRef(true);
@@ -55,7 +56,7 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
   useEffect(() => {
     const area = scrollArea.current;
     if (area && nearBottom.current) area.scrollTop = area.scrollHeight;
-  }, [conversation.messages]);
+  }, [conversation.messages, typing]);
 
   useEffect(() => {
     const field = input.current;
@@ -74,10 +75,16 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
     setDraft('');
     setNotice('');
     input.current?.focus();
+    setTyping(true);
     try {
-      await onRestaurantMessageSent({ restaurantId: RESTAURANT_ID, conversationId: next.id, message, history: next.messages });
+      const reply = await onRestaurantMessageSent({ restaurantId: RESTAURANT_ID, conversationId: next.id, message, history: next.messages });
+      if (current.current.id === next.id) {
+        update({ ...current.current, messages: [...current.current.messages, { ...createMessage('assistant', reply.text), id: reply.messageId }] });
+      }
     } catch {
       setNotice('A resposta ficou no chat, mas houve uma falha ao acionar a integração.');
+    } finally {
+      setTyping(false);
     }
   }
 
@@ -86,7 +93,7 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
       <div className="avatar"><BrandLogo symbol /></div>
       <div className="contact"><h1>Decide Aí</h1><p>Insights para seu restaurante</p></div>
     </header>
-    <div className="context-strip"><span className="context-dot" />Resumo semanal · exemplo com dados ilustrativos</div>
+    <div className="context-strip"><span className="context-dot" />Insights da semana · peça quando quiser</div>
     <div className="chat-body" ref={scrollArea} onScroll={event => {
       const area = event.currentTarget;
       nearBottom.current = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
@@ -97,6 +104,7 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
             <div className="date-divider"><span>{new Date(message.createdAt).toDateString() === new Date().toDateString() ? 'Hoje' : dateFormat.format(new Date(message.createdAt))}</span></div>}
           <MessageBubble message={message} onRetryAudio={noAudio} userLabel="Restaurante" assistantLabel="Decide Aí" />
         </div>)}
+        {typing && <div className="typing" role="status" aria-label="Decide Aí digitando"><i /><i /><i /></div>}
       </div>
     </div>
     <footer className="chat-footer">
