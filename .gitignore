@@ -16,3 +16,11 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Python (backend/)
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Banco local de eventos de demanda
+backend/data/

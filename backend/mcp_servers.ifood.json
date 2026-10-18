@@ -1,0 +1,6 @@
+[
+  { "nome": "user",            "url": "COLE_AQUI_A_URL_DO_USER_MCP",            "headers": { "Authorization": "Bearer ${IFOOD_MCP_TOKEN}" } },
+  { "nome": "offer-discovery", "url": "COLE_AQUI_A_URL_DO_OFFER_DISCOVERY_MCP", "headers": { "Authorization": "Bearer ${IFOOD_MCP_TOKEN}" } },
+  { "nome": "cart",            "url": "COLE_AQUI_A_URL_DO_CART_MCP",            "headers": { "Authorization": "Bearer ${IFOOD_MCP_TOKEN}" } },
+  { "nome": "order-tracking",  "url": "COLE_AQUI_A_URL_DO_ORDER_TRACKING_MCP",  "headers": { "Authorization": "Bearer ${IFOOD_MCP_TOKEN}" } }
+]
