@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, readFile, readdir, rmdir, unlink, mkdir } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rmdir, unlink, mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
@@ -80,6 +80,23 @@ test('não usa o nome enviado para escolher o caminho e não permite ler outros 
     for (const url of ['/api/images/../../package.json', '/api/images/%2e%2e%2fpackage.json', '/api/images/.gitkeep', '/api/images/qualquer.png']) {
       assert.equal((await invoke(handlers.serve, { method: 'GET', url })).status, 404);
     }
+  });
+});
+
+test('apaga cada imagem da pasta depois de 10 mensagens novas, inclusive as que já estavam lá', async () => {
+  await withImages(async (_, directory) => {
+    await writeFile(resolve(directory, '1bb09048-3041-44fa-afaa-d169c65f2db0.png'), PNG);
+    await writeFile(resolve(directory, '.gitkeep'), '');
+    const handlers = createImageHandlers({ directory });
+    for (let i = 0; i < 3; i++) await handlers.messageSent();
+    const image = JSON.parse((await invoke(handlers.upload)).body);
+    for (let i = 0; i < 7; i++) await handlers.messageSent();
+    assert.deepEqual((await readdir(directory)).sort(), ['.gitkeep', `${image.id}.png`]);
+    for (let i = 0; i < 2; i++) await handlers.messageSent();
+    assert.deepEqual((await readdir(directory)).sort(), ['.gitkeep', `${image.id}.png`]);
+    await handlers.messageSent();
+    assert.deepEqual(await readdir(directory), ['.gitkeep']);
+    assert.equal((await invoke(handlers.serve, { method: 'GET', url: image.url })).status, 404);
   });
 });
 

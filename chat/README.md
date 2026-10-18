@@ -117,7 +117,7 @@ O recebimento de novos resumos está preparado em `window.restaurantChat.receive
 - A imagem aparece na conversa; clique nela para abrir em tamanho original. O histórico mantém o endereço e a legenda após atualizar a página.
 - O console registra `[chat:image:saved]` com o caminho relativo, e o trigger recebe `message.type === 'image'` e `message.image` com `id`, `url`, `relativePath`, `mimeType`, `size` e `originalName`. `message.content` contém a legenda.
 - A integração com o Haiku pode usar `relativePath` para ler os bytes no servidor. O endereço local da imagem não é acessível à API do Haiku diretamente pela internet; a integração futura deverá enviar os bytes da imagem.
-- Iniciar uma nova conversa limpa o histórico do navegador, mas preserva as imagens na pasta `temp`. Os arquivos não são apagados automaticamente.
+- Cada imagem da pasta `temp` é apagada automaticamente depois de 10 mensagens novas do cliente (contando todas as conversas). No histórico, a imagem apagada aparece como indisponível. Imagens que já estavam na pasta quando o servidor iniciou entram nessa contagem a partir do início.
 - Se a pasta for movida ou os arquivos forem removidos, as respectivas imagens deixam de aparecer no histórico.
 
 O recurso **Anexar áudio** foi removido. A gravação pelo microfone e a transcrição local continuam disponíveis.

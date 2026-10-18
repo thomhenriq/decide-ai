@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const IMAGE_MAX_MESSAGES = 10;
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const FILE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|png|webp)$/;
 
@@ -41,9 +42,32 @@ function matchesType(data, type) {
   return type === 'image/webp' && data.length >= 16 && data.toString('ascii', 0, 4) === 'RIFF' && data.toString('ascii', 8, 12) === 'WEBP';
 }
 
-/** Guarda os arquivos na pasta temp, sempre com nomes gerados pelo servidor. */
-export function createImageHandlers({ directory = resolve(process.cwd(), 'temp') } = {}) {
+/**
+ * Guarda os arquivos na pasta temp, sempre com nomes gerados pelo servidor.
+ * Cada imagem é apagada depois de `maxMessages` mensagens novas do cliente (contadas em `messageSent`).
+ */
+export function createImageHandlers({ directory = resolve(process.cwd(), 'temp'), maxMessages = IMAGE_MAX_MESSAGES } = {}) {
+  // Nome do arquivo → valor do contador de mensagens quando a imagem chegou.
+  const uploads = new Map();
+  let messages = 0;
+  let scan;
+  // Imagens que já estavam na pasta (de execuções anteriores) entram na contagem a partir de agora.
+  const trackExisting = () => scan ??= readdir(directory)
+    .then(names => { for (const name of names) if (FILE.test(name) && !uploads.has(name)) uploads.set(name, messages); })
+    .catch(() => {});
+  trackExisting();
   return {
+    messageSent: async () => {
+      await trackExisting();
+      messages += 1;
+      for (const [name, at] of uploads) {
+        if (messages - at < maxMessages) continue;
+        uploads.delete(name);
+        await unlink(resolve(directory, name)).catch(error => {
+          if (error.code !== 'ENOENT') console.warn('[images:cleanup]', name, error.message);
+        });
+      }
+    },
     upload: async (request, response) => {
       try {
         if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); throw new UploadError(405, 'Use POST para enviar uma imagem.'); }
@@ -65,6 +89,7 @@ export function createImageHandlers({ directory = resolve(process.cwd(), 'temp')
         try { originalName = decodeURIComponent(request.headers['x-file-name'] || originalName).split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 200) || originalName; } catch { /* Usa nome padrão. */ }
         await mkdir(directory, { recursive: true });
         await writeFile(resolve(directory, filename), bytes, { flag: 'wx' });
+        uploads.set(filename, messages);
         json(response, 201, {
           id, mimeType, size: bytes.length, originalName,
           url: `/api/images/${filename}`,

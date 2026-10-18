@@ -5,6 +5,7 @@ import { AudioComposer } from './components/AudioComposer';
 import { RestaurantChat } from './components/RestaurantChat';
 import { BrandLogo } from './components/BrandLogo';
 import { useChatPages } from './components/useChatPages';
+import { useTextareaAutosize } from './components/useTextareaAutosize';
 import { onMessageSent } from './services/agent';
 import { getUserLocation } from './services/location';
 import { prepareAgentDelivery } from './services/agentMessages';
@@ -57,7 +58,7 @@ function ClientChat({ previewResponse, previewTemplates }: AppProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [notice, setNotice] = useState('');
-  const input = useRef<HTMLTextAreaElement>(null);
+  const input = useTextareaAutosize(draft);
   const scrollArea = useRef<HTMLDivElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const cancelReset = useRef<HTMLButtonElement>(null);
@@ -108,13 +109,6 @@ function ClientChat({ previewResponse, previewTemplates }: AppProps) {
     const area = scrollArea.current;
     if (area && nearBottom.current) area.scrollTop = area.scrollHeight;
   }, [conversation.messages, typing]);
-
-  useEffect(() => {
-    const field = input.current;
-    if (!field) return;
-    field.style.height = 'auto';
-    field.style.height = `${Math.min(field.scrollHeight, 112)}px`;
-  }, [draft]);
 
   useEffect(() => {
     const close = (event: PointerEvent) => {
@@ -208,7 +202,8 @@ function ClientChat({ previewResponse, previewTemplates }: AppProps) {
     setNotice('');
     update({ ...current.current, messages: [...current.current.messages, message] });
     console.info('[chat:image:saved]', image.relativePath, image);
-    await triggerAgent(message, conversationId);
+    // O modal aguarda apenas o upload; a resposta do agente segue no chat.
+    void triggerAgent(message, conversationId);
   }
 
   function resetConversation() {
@@ -286,9 +281,9 @@ function ClientChat({ previewResponse, previewTemplates }: AppProps) {
           {notice && <div className="notice" role="status">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Fechar aviso"><Icon name="close" size={16} /></button></div>}
           <AudioComposer key={conversation.id} onSend={sendAudio} onSendImage={sendImage} />
           <form className="composer" onSubmit={event => { event.preventDefault(); void sendMessage(draft); }}>
-            <div className="input-wrap"><textarea ref={input} aria-label="Mensagem" placeholder="O que você está com vontade?" rows={1} maxLength={10000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
+            <label className="input-wrap"><textarea ref={input} aria-label="Mensagem" placeholder="O que você está com vontade?" rows={1} maxLength={10000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
               if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendMessage(draft); }
-            }} /></div>
+            }} /></label>
             <button type="submit" className="send-button" disabled={!draft.trim()} aria-label="Enviar mensagem"><Icon name="send" size={23} /></button>
           </form>
           <p className="footer-note"><span>Feito para conversar</span><span aria-hidden="true">·</span><span>Protótipo de hackathon</span></p>
