@@ -41,11 +41,20 @@ function parseLocation(value) {
 const OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['type', 'step', 'text'],
+  required: ['type', 'step', 'text', 'termo', 'semOpcao'],
   properties: {
     type: { enum: ['text', 'products'] },
     // chat: conversa e busca; review: resumo do carrinho aguardando o "sim"; confirmed: cliente confirmou o pedido.
     step: { enum: ['chat', 'review', 'confirmed'] },
+    // Desejo do cliente, para a Inteligência de Demanda (server/events.mjs). Nada aqui identifica a pessoa.
+    termo: { type: 'string' },
+    semOpcao: { type: 'boolean' },
+    orcamentoMaxItem: { type: 'number' },
+    prazoMaxMin: { type: 'integer' },
+    taxaEntregaMax: { type: 'number' },
+    dietas: { type: 'array', items: { enum: ['vegetariano', 'vegano', 'sem_gluten'] } },
+    bairro: { type: 'string' },
+    cidade: { type: 'string' },
     text: { type: 'string' },
     products: {
       type: 'array', maxItems: MAX_CHOICES,
@@ -135,6 +144,13 @@ Fluxo de pedido, passo a passo, quando o cliente escolher um produto ("quero a 2
 6. Revisão: chame getCart e mostre um resumo em texto com itens, subtotal, frete, taxas, descontos, total, endereço, entrega e pagamento, terminando com "Posso confirmar o pedido?". Nessa resposta use step "review" e preencha order com os dados exatos do getCart (totalCents é o total final, com taxas).
 7. Confirmação: quando o cliente responder que sim ao resumo, use step "confirmed", preencha order de novo e escreva no text só uma frase curta de agradecimento, sem repetir "pedido confirmado" (o comprovante já diz isso). O servidor gera o comprovante com o número do pedido; não invente número.
 Em todas as outras respostas, use step "chat".
+
+Registro do desejo (em TODA resposta, sem comentar com o cliente):
+- termo: só o nome da comida que o cliente quer nesta conversa, curto e no singular ("açaí", "pizza", "hambúrguer vegano"). Palavras como barato, rápido ou perto não entram no termo. Mantenha o mesmo termo durante todo o pedido; troque só se o cliente mudar de ideia. Use "" se ele ainda não disse o que quer.
+- semOpcao: true só quando você buscou e não encontrou nenhuma opção que sirva.
+- orcamentoMaxItem (reais), prazoMaxMin (minutos), taxaEntregaMax (reais) e dietas: só se o cliente disse.
+- bairro e cidade: só se souber pelo endereço de entrega. Nunca envie rua, número ou coordenadas nesses campos.
+Nunca pergunte ao cliente o motivo de uma escolha ou recusa.
 Faça uma etapa por mensagem quando precisar de resposta do cliente. Não pule a confirmação do passo 6.
 
 IMPORTANTE: o envio do pedido é uma SIMULAÇÃO. Você não tem a ferramenta submitOrder e nunca deve tentar enviar o pedido ao iFood. Nada é cobrado. O passo 7 (step "confirmed") substitui o envio real.
@@ -204,7 +220,7 @@ function buildPrompt(message, history, resumed, directory) {
  * Lê o stream do CLI evento a evento. Se o modelo tentar qualquer ferramenta fora da lista de leitura,
  * o processo é encerrado na hora e a resposta é recusada.
  */
-function runClaude({ command, args, prompt, cwd, onToolUse = () => {} }) {
+export function runClaude({ command, args, prompt, cwd, onToolUse = () => {} }) {
   return new Promise((resolveRun, reject) => {
     const child = spawn(command, args, { cwd, env: { ...process.env, MCP_CONNECTION_NONBLOCKING: 'false' }, windowsHide: true });
     const toolCalls = [];
@@ -347,6 +363,9 @@ export function createAgentHandler({
   fallbackLocation = parseLocation({ latitude: process.env.USER_LATITUDE, longitude: process.env.USER_LONGITUDE }),
   directory = process.cwd(),
   run = runClaude,
+  // Registro de eventos (server/events.mjs) e conversor de GPS em bairro/cidade. Ambos opcionais.
+  events,
+  geocode = async () => ({}),
 } = {}) {
   const sessions = new Map();
   const queues = new Map();
@@ -384,7 +403,21 @@ export function createAgentHandler({
     if (step === 'review' && validOrder(result.structured_output.order)) pendingOrders.set(conversationId, result.structured_output.order);
     const reply = toAgentResponse(result, conversationId, pendingOrders.get(conversationId));
     if (step === 'confirmed') pendingOrders.delete(conversationId);
+    if (events) await recordEvent({ conversationId, message, location, output: result.structured_output ?? {}, reply }).catch(error => console.warn('[agent:events]', error.message));
     return reply;
+  }
+
+  /** Abre, atualiza e fecha o evento da conversa. Falhas aqui nunca derrubam a resposta ao cliente. */
+  async function recordEvent({ conversationId, message, location, output, reply }) {
+    const coords = parseLocation(location);
+    const regiao = coords ? await geocode(coords) : {};
+    events.registrarDesejo(conversationId, output, {
+      canal: message.type === 'image' ? 'imagem' : message.type === 'audio' ? 'audio' : 'texto',
+      regiao: { bairro: regiao.bairro ?? output.bairro, cidade: regiao.cidade ?? output.cidade },
+    });
+    if (reply.type === 'products') events.registrarExibicoes(conversationId, reply.products);
+    if (output.step === 'confirmed') events.fecharEvento(conversationId, 'aceitou');
+    else if (output.semOpcao && reply.type !== 'products') events.fecharEvento(conversationId, 'sem_opcao');
   }
 
   return async (request, response) => {

@@ -16,7 +16,9 @@ npm run dev
 
 O ambiente e o modelo já foram preparados nesta máquina. Se o servidor estava aberto antes da alteração, reinicie com `npm run dev` para carregar o endpoint de transcrição. `.env.example` contém apenas opções locais; copiá-lo para `.env` é opcional. Não é necessária uma chave da OpenAI. Se a instalação não encontrar um Python compatível, instale Python 3.12 ou defina `PYTHON_EXECUTABLE` com seu caminho.
 
-Abra a URL mostrada pelo Vite. No computador, os chats de cliente e restaurante aparecem lado a lado, com os títulos acima. Em telas pequenas, ficam um abaixo do outro, mantendo o formato de celular.
+Abra a URL mostrada pelo Vite. No computador, os chats de cliente e restaurante aparecem lado a lado, com os títulos acima. Em telas de até 760px, aparece um chat por vez, ocupando a tela disponível. Deslize para cima por pelo menos 96px para ir ao restaurante, ou para baixo para voltar ao cliente: a troca é instantânea, sem animação ou rolagem da página.
+
+A rolagem do histórico continua normal. Um gesto iniciado dentro do histórico só troca de página quando ele já está no limite na direção do movimento; chegar ao fim durante uma rolagem exige um novo gesto para trocar. Gestos curtos, horizontais ou sobre campos e controles não trocam de página. Roda e trackpad também exigem movimento acumulado e limitam cada rajada a uma troca. Os dois chats continuam montados, preservando mensagens, rascunhos e integrações ao alternar.
 
 Para acessar de outro aparelho na mesma rede, encerre o servidor atual e execute:
 
@@ -59,22 +61,51 @@ Funciona apenas enquanto este computador estiver rodando `npm run dev`. Ele aten
 
 ## Demo pública (túnel)
 
-Para mostrar o chat fora da sua rede sem tirar nada da máquina, use um Cloudflare Tunnel. O agente, o MCP do iFood e a transcrição continuam rodando aqui.
+Para mostrar o chat fora da sua rede sem tirar nada da máquina, use um túnel. O agente, o MCP do iFood e a transcrição continuam rodando aqui.
+
+**URL fixa da demo:** `https://cassette-applicant-blazing.ngrok-free.dev`. É o domínio fixo grátis da conta ngrok configurada nesta máquina e não muda quando o túnel é reiniciado.
 
 1. Defina uma senha no `.env`: `DEMO_ACCESS_KEY=sua-senha`.
-2. Em um terminal, rode `npm run dev`. Em outro, rode `npm run tunnel` (requer o `cloudflared` no PATH).
-3. O `cloudflared` mostra uma URL `https://xxxx.trycloudflare.com`. Compartilhe `https://xxxx.trycloudflare.com/?key=sua-senha`.
+2. Em um terminal, rode `npm run dev`. Em outro, rode `npm run tunnel` (requer o `ngrok` logado na conta dona do domínio).
+3. Compartilhe `https://cassette-applicant-blazing.ngrok-free.dev/?key=sua-senha`.
+
+Na primeira visita, o ngrok grátis mostra uma tela de aviso. Basta clicar em **Visit Site** uma vez por navegador.
+
+Alternativa sem conta e sem tela de aviso: `npm run tunnel:cloudflare` (requer o `cloudflared` no PATH). Nesse caso a URL `https://xxxx.trycloudflare.com` muda a cada execução. Para uma URL fixa na Cloudflare, é preciso um domínio próprio cadastrado lá e um túnel nomeado.
 
 - Quem abre o link com `?key=` recebe um cookie por 7 dias, e a senha some da barra de endereço. Sem a senha, aparece uma tela de login e a API responde 401.
 - O `localhost` continua sem senha. Sem `DEMO_ACCESS_KEY`, nada é protegido.
 - Como a URL é HTTPS, o GPS funciona em qualquer celular.
-- A URL muda toda vez que o túnel é reiniciado. Para uma URL fixa, crie um túnel nomeado na sua conta Cloudflare.
 - O computador precisa ficar ligado, com os dois comandos rodando.
 - **Todos os visitantes usam a mesma conta do iFood** (endereços, cartões e carrinhos). O pedido final continua simulado.
 
+## Inteligência de demanda (eventos e insights)
+
+Adaptação das skills `registrar-evento` e `gerar-insights` (pasta `new_skills/`), **sem a parte de feedback**: o agente nunca pergunta ao cliente o motivo de uma escolha.
+
+**Registro** (`server/events.mjs`, SQLite embutido do Node em `data/decide-ai.db`, fora do Git):
+- Cada ciclo de busca vira um evento: termo ("açaí"), filtros que o cliente disse, hora, dia, turno, bairro e cidade, canal (texto, áudio ou imagem) e as 3 opções mostradas.
+- O evento fecha como `aceitou` (pedido simulado confirmado), `sem_opcao` (busca sem resultado), `trocou` (mudou de ideia depois de ver opções) ou `desistiu` (60 min parado).
+- O modelo só informa o termo e os filtros na saída estruturada. Quem grava é o servidor, com código fixo.
+- **Privacidade:** nada liga o evento à conversa ou à pessoa. O GPS vira bairro e cidade pelo OpenStreetMap e as coordenadas não são guardadas. Eventos são apagados após 30 dias.
+
+**Insights** (`server/insights.mjs` e `server/restaurant-agent.mjs`):
+- No chat **Restaurante**, qualquer mensagem vai para `/api/restaurant/agent`. Se for um pedido de insights ("me manda os insights da semana", "como foi a semana?"), o servidor calcula os insights dos últimos 7 dias em SQL e o Claude, com `server/skills/gerar-insights.md`, só reescreve o texto. Qualquer número que não veio do banco é descartado.
+- **Tipos:**
+  - `demanda_apos_fechamento`: buscas depois do horário de fechamento (`RESTAURANT_CLOSING_HOUR`), com o horário de pico. Exemplo: "12 buscas por açaí depois das 23h… mais procura por volta de meia-noite".
+  - `lacuna_demanda`: buscas sem opção.
+  - `tendencia`: pratos em alta nas fotos enviadas.
+- Um insight só sai com pelo menos **10 ocorrências** do mesmo padrão. Abaixo disso, o restaurante recebe o aviso de que ainda não há dados concretos, com quantas buscas foram registradas, quantas conversas chegaram ao fim e os primeiros sinais.
+- **Conversa concluída** = pedido confirmado ou busca sem opção. Se houver insight, mas a maioria das conversas não terminou, o resumo vem com uma ressalva de dado ainda fraco.
+- Configure no `.env`: `RESTAURANT_NAME`, `RESTAURANT_CLOSING_HOUR` (0 a 23) e, opcionalmente, `RESTAURANT_CITY`.
+
+**Dados para a demo:** `npm run seed:insights` acrescenta uma semana de buscas **fictícias** ao banco (`scripts/seed-insights.mjs`). São 16 buscas por açaí entre 23h e 2h, com pico à meia-noite, mais 11 buscas por poke sem opção e algumas buscas comuns. Com `RESTAURANT_CLOSING_HOUR=23`, o pedido "me manda os insights da semana" passa a mostrar os dois insights. Para recomeçar do zero, use `npm run seed:insights -- --limpar`, que **apaga todos os eventos**, inclusive os reais.
+
+O chat do restaurante começa com uma saudação explicando como pedir os insights. O resumo de exemplo com dados inventados (`public/examples/weekly-insight.json`) continua disponível só para testar a ponte `window.restaurantChat.receiveWeeklyInsight`.
+
 ## Insights para restaurantes
 
-O chat **Restaurante** já mostra um resumo semanal ilustrativo enviado pelo Decide Aí, com o exemplo de procura por açaí após a 1h e a sugestão de estender o horário de atendimento. O restaurante pode responder; o console registra `[restaurant:message:sent]`. Os históricos de cliente e restaurante são separados.
+O chat **Restaurante** começa com uma saudação do Decide Aí. Quando o restaurante pede os insights da semana, o agente responde com os insights calculados no banco (veja "Inteligência de demanda" acima). Os históricos de cliente e restaurante são separados.
 
 O recebimento de novos resumos está preparado em `window.restaurantChat.receiveWeeklyInsight(resumo)`, com identificação do restaurante e prevenção de reenvios duplicados. Consulte **[o contrato e os limites desta etapa](docs/restaurant-insights.md)**. A geração dos insights, o agendamento semanal e o envio real ao WhatsApp ainda não estão conectados.
 
@@ -126,7 +157,7 @@ Edite `src/services/agent.ts`. A função `onMessageSent(payload)` é chamada um
 }
 ```
 
-`createdAt` usa ISO 8601. O histórico inclui a mensagem atual e exclui áudios ainda sem transcrição bem-sucedida. Mensagens de áudio têm `type: 'audio'`, `content` com o texto reconhecido e `audio` com os metadados. A conversa começa vazia e o usuário envia a primeira mensagem. Enter envia, Shift+Enter quebra a linha. Mensagens vazias são ignoradas. As sugestões enviam o texto exibido.
+`createdAt` usa ISO 8601. O histórico inclui a mensagem atual e exclui áudios ainda sem transcrição bem-sucedida. Mensagens de áudio têm `type: 'audio'`, `content` com o texto reconhecido e `audio` com os metadados. A conversa começa vazia e o usuário envia a primeira mensagem. Enter envia, Shift+Enter quebra a linha. Mensagens vazias são ignoradas.
 
 ## Respostas do agente
 

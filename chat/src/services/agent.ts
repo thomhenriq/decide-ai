@@ -45,7 +45,20 @@ export async function onMessageSent(payload: MessageSentPayload): Promise<string
   }
 }
 
-/** Canal separado: respostas do restaurante não entram no histórico do cliente. */
-export async function onRestaurantMessageSent(payload: MessageSentPayload & { restaurantId: string }): Promise<void> {
+/**
+ * Canal separado: respostas do restaurante não entram no histórico do cliente.
+ * Envia a mensagem para /api/restaurant/agent (server/restaurant-agent.mjs), que calcula os insights
+ * da semana no banco e responde com o texto para o restaurante.
+ */
+export async function onRestaurantMessageSent(payload: MessageSentPayload & { restaurantId: string }): Promise<{ text: string; messageId: string }> {
   console.info('[restaurant:message:sent]', payload.message.content, payload);
+  const response = await fetch('/api/restaurant/agent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok || typeof body?.text !== 'string') throw new Error(body?.error || `O agente do restaurante respondeu com status ${response.status}.`);
+  console.info('[restaurant:agent:reply]', body);
+  return body;
 }

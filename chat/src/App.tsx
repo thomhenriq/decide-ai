@@ -4,6 +4,7 @@ import { MessageBubble } from './components/MessageBubble';
 import { AudioComposer } from './components/AudioComposer';
 import { RestaurantChat } from './components/RestaurantChat';
 import { BrandLogo } from './components/BrandLogo';
+import { useChatPages } from './components/useChatPages';
 import { onMessageSent } from './services/agent';
 import { getUserLocation } from './services/location';
 import { prepareAgentDelivery } from './services/agentMessages';
@@ -13,7 +14,6 @@ import { uploadImage } from './services/images';
 import { createMessage, loadConversation, newConversation, saveConversation } from './services/storage';
 import type { AgentResponse, Conversation, Message } from './types';
 
-const suggestions = ['Quero um hambúrguer 🍔', 'Algo gostoso até R$ 30', 'Hoje vou de comida vegana 🌱'];
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long' });
 
 function dateLabel(iso: string) {
@@ -31,13 +31,14 @@ function createAgentMessage(response: AgentResponse): Message {
 type AppProps = { previewResponse?: AgentResponse; previewTemplates?: { label: string; response: AgentResponse }[] };
 
 export default function App(props: AppProps) {
-  return <main className="stage">
+  const { stage, activePage } = useChatPages();
+  return <main className="stage" ref={stage}>
     <div className="chat-workspace">
-      <section className="chat-panel" aria-labelledby="client-panel-title">
+      <section className="chat-panel" aria-labelledby="client-panel-title" data-page-active={activePage === 0}>
         <div className="panel-heading"><h2 id="client-panel-title">Cliente</h2><p>Uma conversa para decidir o próximo pedido.</p></div>
         <ClientChat {...props} />
       </section>
-      <section className="chat-panel" aria-labelledby="restaurant-panel-title">
+      <section className="chat-panel" aria-labelledby="restaurant-panel-title" data-page-active={activePage === 1}>
         <div className="panel-heading"><h2 id="restaurant-panel-title">Restaurante</h2><p>O Decide Aí envia os insights ao final da semana.</p></div>
         <RestaurantChat preview={!!props.previewResponse} />
       </section>
@@ -279,7 +280,6 @@ function ClientChat({ previewResponse, previewTemplates }: AppProps) {
             {typing && <div className="typing" role="status" aria-label="Assistente digitando"><i /><i /><i /></div>}
           </div>
 
-          {!hasUserMessages && <div className="suggestions"><p>SE PRECISAR DE UMA IDEIA</p>{suggestions.map(text => <button type="button" key={text} onClick={() => void sendMessage(text)}>{text}<span aria-hidden="true">↗</span></button>)}</div>}
         </div>
 
         <footer className="chat-footer">

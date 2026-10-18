@@ -11,3 +11,6 @@ __pycache__/
 *.pyc
 temp/*
 !temp/.gitkeep
+
+# Banco SQLite da Inteligência de Demanda
+data/

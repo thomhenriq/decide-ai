@@ -9,7 +9,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "tunnel": "cloudflared tunnel --no-autoupdate --url http://127.0.0.1:5173"
+    "tunnel": "ngrok http 5173 --url=https://cassette-applicant-blazing.ngrok-free.dev",
+    "tunnel:cloudflare": "cloudflared tunnel --no-autoupdate --url http://127.0.0.1:5173",
+    "seed:insights": "node scripts/seed-insights.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

@@ -148,3 +148,27 @@ test('usa o GPS do navegador e, sem ele, instrui o agente a pedir o endereço', 
   assert.match(prompts[1], /NÃO está disponível/);
   assert.match(prompts[2], /NÃO está disponível/);
 });
+
+test('registra o evento da conversa no banco, sem guardar coordenadas', async () => {
+  const { createEventStore } = await import('../server/events.mjs');
+  const events = createEventStore({ path: ':memory:' });
+  const outputs = [
+    { type: 'products', step: 'chat', text: 'Achei:', termo: 'Açaí', semOpcao: false, orcamentoMaxItem: 20, products: [{ id: 'i1', name: 'Açaí', restaurant: { id: 'm1', name: 'Ponto' } }] },
+    { type: 'text', step: 'confirmed', text: 'Obrigado!', termo: 'açaí', semOpcao: false, order: { merchantName: 'Ponto', items: [{ name: 'Açaí', quantity: 1 }], totalCents: 790 } },
+    { type: 'text', step: 'chat', text: 'Não achei poke aberto agora.', termo: 'poke', semOpcao: true },
+  ];
+  const handler = createAgentHandler({ events, geocode: async () => ({ bairro: 'Cidade Universitária', cidade: 'Campinas' }),
+    run: async () => ({ session_id: 's', structured_output: outputs.shift() }) });
+  const location = { latitude: -22.8184, longitude: -47.0647 };
+  await invoke(handler, { conversationId: 'c1', message: message('1', 'quero açaí até 20'), history: [], location });
+  await invoke(handler, { conversationId: 'c1', message: message('2', 'sim'), history: [], location });
+  await invoke(handler, { conversationId: 'c2', message: message('3', 'quero poke'), history: [] });
+  const linhas = events.db.prepare('SELECT termo, resultado, bairro, cidade, orcamento_max_item AS orcamento FROM eventos ORDER BY termo').all()
+    .map(l => ({ ...l }));
+  assert.deepEqual(linhas, [
+    { termo: 'açaí', resultado: 'aceitou', bairro: 'Cidade Universitária', cidade: 'Campinas', orcamento: 20 },
+    { termo: 'poke', resultado: 'sem_opcao', bairro: null, cidade: null, orcamento: null },
+  ]);
+  assert.equal(events.db.prepare('SELECT COUNT(*) AS n FROM exibicoes').get().n, 1);
+  assert.ok(!JSON.stringify(events.db.prepare('SELECT * FROM eventos').all()).includes('-22.8'));
+});

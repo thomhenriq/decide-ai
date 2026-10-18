@@ -24,6 +24,10 @@ test('localhost continua livre, mas o túnel não', () => {
   }
   // Pelo túnel, o cloudflared se conecta no localhost mas envia cf-connecting-ip.
   assert.equal(invoke(guard, { host: 'localhost:5173' }).passed, false);
+  // O ngrok envia x-forwarded-for.
+  let passed = false;
+  guard({ url: '/', headers: { host: 'localhost:5173', 'x-forwarded-for': '203.0.113.7' } }, { writeHead() {}, end() {} }, () => { passed = true; });
+  assert.equal(passed, false);
 });
 
 test('visitante sem senha vê a tela de login e a API responde 401', () => {

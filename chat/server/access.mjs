@@ -42,8 +42,9 @@ export function createAccessGuard({ accessKey } = {}) {
   return (request, response, next) => {
     if (!accessKey) return next();
     const host = (request.headers.host || '').replace(/:\d+$/, '').toLowerCase();
-    // O cloudflared se conecta pelo localhost, mas mantém o Host público e adiciona cf-connecting-ip.
-    if (LOCAL_HOSTS.has(host) && !request.headers['cf-connecting-ip']) return next();
+    // Os túneis se conectam pelo localhost, mas identificam o visitante: cloudflared com cf-connecting-ip, ngrok com x-forwarded-for.
+    const proxied = request.headers['cf-connecting-ip'] || request.headers['x-forwarded-for'];
+    if (LOCAL_HOSTS.has(host) && !proxied) return next();
 
     const url = new URL(request.url || '/', 'http://local');
     const key = url.searchParams.get('key');
