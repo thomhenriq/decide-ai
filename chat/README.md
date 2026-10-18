@@ -57,6 +57,21 @@ Requisitos: `claude` instalado e logado, e `claude mcp list` mostrando `iFood ..
 
 Funciona apenas enquanto este computador estiver rodando `npm run dev`. Ele atende bem a uma demonstração, mas não foi feito para muitos usuários simultâneos.
 
+## Demo pública (túnel)
+
+Para mostrar o chat fora da sua rede sem tirar nada da máquina, use um Cloudflare Tunnel. O agente, o MCP do iFood e a transcrição continuam rodando aqui.
+
+1. Defina uma senha no `.env`: `DEMO_ACCESS_KEY=sua-senha`.
+2. Em um terminal, rode `npm run dev`. Em outro, rode `npm run tunnel` (requer o `cloudflared` no PATH).
+3. O `cloudflared` mostra uma URL `https://xxxx.trycloudflare.com`. Compartilhe `https://xxxx.trycloudflare.com/?key=sua-senha`.
+
+- Quem abre o link com `?key=` recebe um cookie por 7 dias, e a senha some da barra de endereço. Sem a senha, aparece uma tela de login e a API responde 401.
+- O `localhost` continua sem senha. Sem `DEMO_ACCESS_KEY`, nada é protegido.
+- Como a URL é HTTPS, o GPS funciona em qualquer celular.
+- A URL muda toda vez que o túnel é reiniciado. Para uma URL fixa, crie um túnel nomeado na sua conta Cloudflare.
+- O computador precisa ficar ligado, com os dois comandos rodando.
+- **Todos os visitantes usam a mesma conta do iFood** (endereços, cartões e carrinhos). O pedido final continua simulado.
+
 ## Insights para restaurantes
 
 O chat **Restaurante** já mostra um resumo semanal ilustrativo enviado pelo Decide Aí, com o exemplo de procura por açaí após a 1h e a sugestão de estender o horário de atendimento. O restaurante pode responder; o console registra `[restaurant:message:sent]`. Os históricos de cliente e restaurante são separados.
