@@ -45,7 +45,11 @@ export default defineConfig(({ mode }) => {
     server.middlewares.use(access);
     server.middlewares.use((request, response, next) => {
       if (request.url?.split('?')[0] === '/api/transcriptions') return transcription(request, response);
-      if (request.url?.split('?')[0] === '/api/agent') return agent(request, response);
+      if (request.url?.split('?')[0] === '/api/agent') {
+        // Cada mensagem do cliente conta para apagar as imagens da pasta temp após 10 mensagens.
+        if (request.method === 'POST') void images.messageSent();
+        return agent(request, response);
+      }
       if (request.url?.split('?')[0] === '/api/restaurant/agent') return restaurantAgent(request, response);
       if (request.url?.split('?')[0] === '/api/images') return images.upload(request, response);
       if (request.url?.startsWith('/api/images/')) return images.serve(request, response);

@@ -30,7 +30,7 @@ export function useChatPages() {
 
     const element = (target: EventTarget | null) => target instanceof Element ? target : null;
     const blocked = (target: EventTarget | null) => !!root.querySelector('dialog[open], [role="dialog"][aria-modal="true"]') ||
-      !!element(target)?.closest('input, textarea, button, a, audio, select, [contenteditable]:not([contenteditable="false"])');
+      !!element(target)?.closest('.composer, input, textarea, button, a, audio, select, [contenteditable]:not([contenteditable="false"])');
     const areaAt = (target: EventTarget | null) => element(target)?.closest<HTMLElement>('.chat-body') ?? null;
 
     const touchStart = (event: TouchEvent) => {

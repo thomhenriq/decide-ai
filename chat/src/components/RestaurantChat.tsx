@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { BrandLogo } from './BrandLogo';
 import { MessageBubble } from './MessageBubble';
+import { useTextareaAutosize } from './useTextareaAutosize';
 import { onRestaurantMessageSent } from '../services/agent';
 import { createMessage, loadConversation, saveConversation } from '../services/storage';
 import { createRestaurantDemoConversation, prepareWeeklyInsight, RESTAURANT_ID, RESTAURANT_STORAGE_KEY } from '../services/restaurantInsights';
@@ -18,7 +19,7 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
   const [notice, setNotice] = useState('');
   const [typing, setTyping] = useState(false);
   const scrollArea = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLTextAreaElement>(null);
+  const input = useTextareaAutosize(draft);
   const nearBottom = useRef(true);
 
   const update = useCallback((next: Conversation) => {
@@ -57,13 +58,6 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
     const area = scrollArea.current;
     if (area && nearBottom.current) area.scrollTop = area.scrollHeight;
   }, [conversation.messages, typing]);
-
-  useEffect(() => {
-    const field = input.current;
-    if (!field) return;
-    field.style.height = 'auto';
-    field.style.height = `${Math.min(field.scrollHeight, 112)}px`;
-  }, [draft]);
 
   async function sendMessage() {
     const content = draft.trim();
@@ -110,9 +104,9 @@ export function RestaurantChat({ preview = false }: { preview?: boolean }) {
     <footer className="chat-footer">
       {notice && <div className="notice" role="status">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Fechar aviso do restaurante"><Icon name="close" size={16} /></button></div>}
       <form className="composer" onSubmit={event => { event.preventDefault(); void sendMessage(); }}>
-        <div className="input-wrap"><textarea ref={input} aria-label="Mensagem do restaurante" placeholder="Mensagem" rows={1} maxLength={10000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
+        <label className="input-wrap"><textarea ref={input} aria-label="Mensagem do restaurante" placeholder="Mensagem" rows={1} maxLength={10000} value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => {
           if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendMessage(); }
-        }} /></div>
+        }} /></label>
         <button type="submit" className="send-button" disabled={!draft.trim()} aria-label="Enviar mensagem do restaurante"><Icon name="send" size={23} /></button>
       </form>
       <p className="footer-note"><span>Protótipo de hackathon</span><span aria-hidden="true">·</span><span>Sem envio real ao WhatsApp</span></p>
