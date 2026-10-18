@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rmdir, unlink, mkdir } from 'node:fs/promis
 import { resolve } from 'node:path';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
-import ts from 'typescript';
+import { importTypeScript } from './import-typescript.mjs';
 import { createImageHandlers, MAX_IMAGE_BYTES } from '../server/images.mjs';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jL9kAAAAASUVORK5CYII=', 'base64');
@@ -82,12 +82,6 @@ test('não usa o nome enviado para escolher o caminho e não permite ler outros 
     }
   });
 });
-
-async function importTypeScript(path) {
-  const source = await readFile(new URL(path, import.meta.url), 'utf8');
-  const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
-}
 
 test('frontend envia imagem e recebe caminho sem precisar de uma API externa', async () => {
   const { uploadImage, validateImage } = await importTypeScript('../src/services/images.ts');
