@@ -1,13 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import ts from 'typescript';
-
-async function importTypeScript(path) {
-  const source = await readFile(new URL(path, import.meta.url), 'utf8');
-  const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } });
-  return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
-}
+import { importTypeScript } from './import-typescript.mjs';
 const { prepareAudio, formatDuration, transcribeAudio, MAX_AUDIO_BYTES } = await importTypeScript('../src/services/audio.ts');
 const { createMessage, loadConversation, saveConversation } = await importTypeScript('../src/services/storage.ts');
 

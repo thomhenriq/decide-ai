@@ -1,0 +1,34 @@
+{
+  "type": "products",
+  "text": "Separei três opções para o seu jantar. Qual combina mais com sua vontade de hoje?",
+  "products": [
+    {
+      "id": "demo-burger-01",
+      "name": "Burger da casa",
+      "description": "Pão brioche, hambúrguer artesanal, queijo e salada. Um clássico bem caprichado.",
+      "imageUrl": "/examples/burger.svg",
+      "priceCents": 2990,
+      "originalPriceCents": 3490,
+      "restaurant": { "id": "demo-rest-01", "name": "Quintal Burger", "rating": 4.8, "ratingCount": 248 },
+      "delivery": { "feeCents": 0, "minMinutes": 25, "maxMinutes": 40 }
+    },
+    {
+      "id": "demo-pizza-01",
+      "name": "Pizza marguerita",
+      "description": "Molho de tomate, muçarela, manjericão fresco e aquela massa de fermentação lenta.",
+      "imageUrl": "/examples/pizza.svg",
+      "priceCents": 4590,
+      "restaurant": { "id": "demo-rest-02", "name": "Forno & Afeto", "rating": 4.7, "ratingCount": 192 },
+      "delivery": { "feeCents": 490, "minMinutes": 35, "maxMinutes": 50 }
+    },
+    {
+      "id": "demo-bowl-01",
+      "name": "Bowl colorido",
+      "description": "Arroz, grão-de-bico, legumes frescos e molho de ervas. Leve, bonito e cheio de sabor.",
+      "imageUrl": "/examples/bowl.svg",
+      "priceCents": 2790,
+      "restaurant": { "id": "demo-rest-03", "name": "Verde Mesa", "rating": 4.9, "ratingCount": 86 },
+      "delivery": { "feeCents": 290, "minMinutes": 20, "maxMinutes": 35 }
+    }
+  ]
+}

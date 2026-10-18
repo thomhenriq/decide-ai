@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resposta do agente Decide Aí",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type"],
+  "properties": {
+    "type": { "enum": ["text", "products"] },
+    "conversationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "messageId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "text": { "type": "string", "maxLength": 10000 },
+    "products": { "type": "array", "minItems": 1, "maxItems": 10, "items": { "$ref": "#/$defs/product" } }
+  },
+  "oneOf": [
+    { "properties": { "type": { "const": "text" }, "text": { "minLength": 1 } }, "required": ["text"] },
+    { "properties": { "type": { "const": "products" } }, "required": ["products"] }
+  ],
+  "$defs": {
+    "money": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "url": { "type": "string", "maxLength": 2048, "pattern": "^(https?://|/(?!/))" },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "restaurant"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "imageUrl": { "$ref": "#/$defs/url" },
+        "priceCents": { "$ref": "#/$defs/money" },
+        "originalPriceCents": { "$ref": "#/$defs/money" },
+        "url": { "$ref": "#/$defs/url" },
+        "restaurant": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+            "rating": { "type": "number", "minimum": 0, "maximum": 5 },
+            "ratingCount": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+          }
+        },
+        "delivery": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "feeCents": { "$ref": "#/$defs/money" },
+            "minMinutes": { "type": "integer", "minimum": 0, "maximum": 1440 },
+            "maxMinutes": { "type": "integer", "minimum": 0, "maximum": 1440 }
+          }
+        }
+      }
+    }
+  }
+}

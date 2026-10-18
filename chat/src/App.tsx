@@ -2,12 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './components/Icon';
 import { MessageBubble } from './components/MessageBubble';
 import { AudioComposer } from './components/AudioComposer';
+import { RestaurantChat } from './components/RestaurantChat';
+import { BrandLogo } from './components/BrandLogo';
 import { onMessageSent } from './services/agent';
+import { getUserLocation } from './services/location';
+import { prepareAgentDelivery } from './services/agentMessages';
 import { prepareAudio, transcribeAudio } from './services/audio';
 import { deleteAudio, loadAudio, saveAudio } from './services/audioStorage';
 import { uploadImage } from './services/images';
 import { createMessage, loadConversation, newConversation, saveConversation } from './services/storage';
-import type { Conversation, Message } from './types';
+import type { AgentResponse, Conversation, Message } from './types';
 
 const suggestions = ['Quero um hambúrguer 🍔', 'Algo gostoso até R$ 30', 'Hoje vou de comida vegana 🌱'];
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long' });
@@ -17,8 +21,35 @@ function dateLabel(iso: string) {
   return date.toDateString() === new Date().toDateString() ? 'Hoje' : dateFormat.format(date);
 }
 
-export default function App() {
-  const [conversation, setConversation] = useState<Conversation>(loadConversation);
+function createAgentMessage(response: AgentResponse): Message {
+  const base = createMessage('assistant', response.text || '');
+  return response.type === 'products'
+    ? { ...base, id: response.messageId || base.id, type: 'products', products: response.products }
+    : { ...base, id: response.messageId || base.id };
+}
+
+type AppProps = { previewResponse?: AgentResponse; previewTemplates?: { label: string; response: AgentResponse }[] };
+
+export default function App(props: AppProps) {
+  return <main className="stage">
+    <div className="chat-workspace">
+      <section className="chat-panel" aria-labelledby="client-panel-title">
+        <div className="panel-heading"><h2 id="client-panel-title">Cliente</h2><p>Uma conversa para decidir o próximo pedido.</p></div>
+        <ClientChat {...props} />
+      </section>
+      <section className="chat-panel" aria-labelledby="restaurant-panel-title">
+        <div className="panel-heading"><h2 id="restaurant-panel-title">Restaurante</h2><p>O Decide Aí envia os insights ao final da semana.</p></div>
+        <RestaurantChat preview={!!props.previewResponse} />
+      </section>
+    </div>
+    <p className="desktop-caption"><BrandLogo wordmark /><span>Menos indecisão, mais conversa.</span></p>
+  </main>;
+}
+
+function ClientChat({ previewResponse, previewTemplates }: AppProps) {
+  const [conversation, setConversation] = useState<Conversation>(() => previewResponse
+    ? { ...newConversation(), messages: [createMessage('user', 'Quero algumas opções para jantar.'), createAgentMessage(previewResponse)] }
+    : loadConversation());
   const current = useRef(conversation);
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
@@ -37,24 +68,37 @@ export default function App() {
     setConversation(next);
   }, []);
 
+  // Pede a localização ao abrir o chat, para a primeira busca já sair perto do cliente.
   useEffect(() => {
+    if (previewResponse) return;
+    void getUserLocation().then(location => {
+      if (!location) setNotice('Sem acesso à localização. Vou perguntar seu endereço na conversa. Para usar o GPS, libere a localização no navegador.');
+    });
+  }, [previewResponse]);
+
+  useEffect(() => {
+    if (previewResponse) return;
     if (!saveConversation(conversation)) setNotice('O histórico ficará disponível apenas enquanto esta página estiver aberta.');
-  }, [conversation]);
+  }, [conversation, previewResponse]);
 
   useEffect(() => {
     const requests = audioRequests.current;
     return () => { requests.forEach(controller => controller.abort()); requests.clear(); };
   }, [conversation.id]);
 
-  const receiveMessage = useCallback((text: string) => {
-    if (typeof text !== 'string' || !text.trim()) return;
-    if (!current.current.messages.some(message => message.role === 'user')) return;
-    update({ ...current.current, messages: [...current.current.messages, createMessage('assistant', text.trim())] });
+  const receiveMessage = useCallback((input: string | AgentResponse): boolean => {
+    let delivery: ReturnType<typeof prepareAgentDelivery>;
+    try { delivery = prepareAgentDelivery(input, current.current); }
+    catch (error) { console.warn('[chat:agent:invalid]', error instanceof Error ? error.message : 'Resposta inválida.'); return false; }
+    if (delivery.status === 'ignored') return false;
+    if (delivery.status === 'duplicate') { setTyping(false); return true; }
+    update({ ...current.current, messages: [...current.current.messages, createAgentMessage(delivery.response)] });
     setTyping(false);
+    return true;
   }, [update]);
 
   useEffect(() => {
-    const bridge = { receiveMessage, setTyping };
+    const bridge = { receiveMessage, receiveAgentMessage: receiveMessage, setTyping };
     window.chat = bridge;
     return () => { if (window.chat === bridge) delete (window as Partial<Window>).chat; };
   }, [receiveMessage]);
@@ -90,7 +134,10 @@ export default function App() {
     try {
       const history = current.current.messages.filter(item => !item.audio || item.audio.transcriptionStatus === 'completed');
       const reply = await onMessageSent({ conversationId, message, history });
-      if (typeof reply === 'string' && current.current.id === conversationId) receiveMessage(reply);
+      if (reply !== undefined && current.current.id === conversationId && !receiveMessage(reply)) {
+        setTyping(false);
+        setNotice('O agente respondeu em um formato inválido. Tente de novo.');
+      }
     } catch (error) {
       console.error('[chat:trigger:error]', error);
       if (current.current.id === conversationId) {
@@ -193,10 +240,9 @@ export default function App() {
   const hasUserMessages = conversation.messages.some(message => message.role === 'user');
 
   return (
-    <main className="stage">
       <section className="phone" aria-label="Conversa com Decide Aí">
         <header className="chat-header">
-          <div className="avatar"><Icon name="bowl" size={25} /></div>
+          <div className="avatar"><BrandLogo symbol /></div>
           <div className="contact">
             <h1>Decide Aí <span className="verified" title="Assistente de demonstração">✓</span></h1>
             <p>Uma ajudinha na hora de escolher</p>
@@ -207,13 +253,24 @@ export default function App() {
           </div>
         </header>
 
-        <div className="context-strip"><span className="context-dot" /> Seu próximo pedido começa com um oi</div>
+        <div className="context-strip"><span className="context-dot" />{previewResponse ? 'Prévia dos modelos · dados e imagens ilustrativos' : 'Seu próximo pedido começa com um oi'}</div>
+
+        {previewResponse && previewTemplates && <aside className="preview-controls" aria-label="Testar modelos de mensagem">
+          <div><span>Simular resposta do agente</span><a href="/">Voltar ao chat</a></div>
+          <div>{previewTemplates.map(template => <button type="button" key={template.label} onClick={() => {
+            nearBottom.current = true;
+            if (!current.current.messages.some(message => message.role === 'user')) {
+              update({ ...current.current, messages: [...current.current.messages, createMessage('user', 'Quero algumas opções para jantar.')] });
+            }
+            receiveMessage(template.response);
+          }}>{template.label}</button>)}</div>
+        </aside>}
 
         <div className="chat-body" ref={scrollArea} onScroll={event => {
           const area = event.currentTarget;
           nearBottom.current = area.scrollHeight - area.scrollTop - area.clientHeight < 80;
         }}>
-          <div className="intro"><span className="intro__icon"><Icon name="bowl" size={29} /></span><p>Bateu a fome?</p><span>Conversa boa. Comida também.</span></div>
+          {!hasUserMessages && <div className="intro"><span className="intro__icon"><BrandLogo symbol /></span><p>Bateu a fome?</p><span>Conversa boa. Comida também.</span></div>}
           <div className="messages" role="log" aria-label="Mensagens da conversa" aria-live="polite" aria-relevant="additions text">
             {conversation.messages.map((message, index, messages) => <div key={message.id} className="message-group">
               {(index === 0 || new Date(messages[index - 1].createdAt).toDateString() !== new Date(message.createdAt).toDateString()) && <div className="date-divider"><span>{dateLabel(message.createdAt)}</span></div>}
@@ -251,7 +308,5 @@ export default function App() {
           </section>
         </div>}
       </section>
-      <p className="desktop-caption"><span className="caption-mark">decide aí</span><span>Menos indecisão, mais conversa.</span></p>
-    </main>
   );
 }

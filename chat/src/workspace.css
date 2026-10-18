@@ -1,0 +1,38 @@
+.stage{padding:24px 24px 18px}
+.chat-workspace{display:grid;grid-template-columns:repeat(2,minmax(0,420px));gap:128px;width:100%;max-width:968px;align-items:start}
+.chat-panel{min-width:0}
+.panel-heading{padding:0 7px 14px;text-align:center}
+.panel-heading h2{font-size:21px;letter-spacing:-.6px;font-weight:650;margin:0 0 5px;color:#264e41}
+.panel-heading p{font-size:11px;line-height:1.5;margin:0;color:#708578}
+.chat-workspace .phone{height:min(820px,calc(100dvh - 166px))}
+.restaurant-phone .chat-body{padding-top:18px}
+.brand-logo{display:inline-block;position:relative;overflow:hidden;flex-shrink:0;vertical-align:middle}
+.brand-logo img{position:absolute;display:block;height:auto;max-width:none}
+.brand-logo--symbol{width:86%;aspect-ratio:730 / 605}
+.brand-logo--symbol img{width:171.781%;left:-42.466%;top:-33.058%}
+.brand-logo--full{width:56px;aspect-ratio:1135 / 860}
+.brand-logo--full img{width:110.485%;left:-6.167%;top:-22.674%}
+.brand-logo--wordmark{width:116px;aspect-ratio:1135 / 260;mix-blend-mode:multiply}
+.brand-logo--wordmark img{width:110.485%;left:-6.167%;top:-307.692%}
+.chat-header{position:relative;min-height:84px}
+.chat-header .avatar{position:absolute;left:15px;top:50%;transform:translateY(-50%)}
+.chat-header .contact{text-align:center;padding-inline:48px}
+.chat-header .contact h1{justify-content:center}
+.chat-header .header-menu{position:absolute;right:15px;top:50%;transform:translateY(-50%)}
+.avatar{background:#fff;overflow:hidden;box-shadow:0 0 0 1px #ffffff45}
+.avatar .brand-logo--symbol{width:80%}
+.intro__icon{background:#fff;transform:none;border-radius:50%}
+.desktop-caption{flex-direction:column;justify-content:center;text-align:center;gap:7px;margin-top:17px}
+@media(max-width:760px){
+  .stage{padding:22px 14px;justify-content:flex-start}
+  .chat-workspace{grid-template-columns:minmax(0,420px);justify-content:center;gap:56px}
+  .chat-workspace .phone{height:min(780px,calc(100dvh - 106px))}
+  .desktop-caption{display:none}
+}
+@media(max-width:480px){
+  .stage{padding:0;background:#e7eee9}
+  .chat-workspace{gap:48px;grid-template-columns:minmax(0,1fr)}
+  .panel-heading{padding:15px 18px 12px}
+  .panel-heading h2{font-size:19px}
+  .chat-workspace .phone{height:calc(100dvh - 76px);min-height:440px}
+}

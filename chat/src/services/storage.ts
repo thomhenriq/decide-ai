@@ -1,4 +1,5 @@
 import type { Conversation, Message } from '../types';
+import { isProductRecommendation } from './agentMessages';
 
 const STORAGE_KEY = 'hackathon-ifood:conversation:v1';
 const LEGACY_GREETING = 'Oi! Que bom te ver por aqui 👋\n\nMe conta o que você está com vontade de comer. Vamos encontrar seu próximo pedido juntos?';
@@ -28,7 +29,8 @@ export function newConversation(): Conversation {
 function isMessage(value: unknown): value is Message {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<Message>;
-  if (message.type !== undefined && !['text', 'audio', 'image'].includes(message.type)) return false;
+  if (message.type !== undefined && !['text', 'audio', 'image', 'products'].includes(message.type)) return false;
+  if (message.type === 'products' && (message.role !== 'assistant' || !Array.isArray(message.products) || !message.products.length || message.products.length > 10 || !message.products.every(isProductRecommendation))) return false;
   if (message.type === 'image') {
     const image = message.image;
     if (message.role !== 'user' || !image || typeof image.id !== 'string' ||
@@ -50,9 +52,9 @@ function isMessage(value: unknown): value is Message {
     Number.isFinite(Date.parse(message.createdAt));
 }
 
-export function loadConversation(): Conversation {
+export function loadConversation(storageKey = STORAGE_KEY, fallback = newConversation): Conversation {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     const value = raw ? JSON.parse(raw) : null;
     if (value && typeof value.id === 'string' && Array.isArray(value.messages) && value.messages.every(isMessage)) {
       // Retira a saudação da versão anterior sem apagar a conversa do usuário.
@@ -66,12 +68,12 @@ export function loadConversation(): Conversation {
       };
     }
   } catch { /* Armazenamento indisponível ou histórico inválido: inicia em memória. */ }
-  return newConversation();
+  return fallback();
 }
 
-export function saveConversation(conversation: Conversation): boolean {
+export function saveConversation(conversation: Conversation, storageKey = STORAGE_KEY): boolean {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(conversation));
+    localStorage.setItem(storageKey, JSON.stringify(conversation));
     return true;
   } catch {
     return false;

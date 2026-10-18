@@ -1,0 +1,15 @@
+{
+  "type": "products",
+  "text": "Encontrei uma opção que combina com o que você pediu:",
+  "products": [
+    {
+      "id": "demo-burger-01",
+      "name": "Burger da casa",
+      "description": "Pão brioche, hambúrguer artesanal, queijo e salada.",
+      "imageUrl": "/examples/burger.svg",
+      "priceCents": 2990,
+      "restaurant": { "id": "demo-rest-01", "name": "Quintal Burger", "rating": 4.8, "ratingCount": 248 },
+      "delivery": { "feeCents": 0, "minMinutes": 25, "maxMinutes": 40 }
+    }
+  ]
+}
